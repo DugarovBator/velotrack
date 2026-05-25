@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ru" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="VeloTrack" />
+
+  <!-- SEO -->
+  <title>VeloTrack — Трекер велотренировок</title>
+  <meta name="description" content="Профессиональный GPS-трекер для велосипедистов. Отслеживайте скорость, дистанцию и время тренировки в реальном времени." />
+  <meta name="keywords" content="велотренировки, велосипед, трекер, GPS, скорость, дистанция, PWA" />
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json" />
+
+  <!-- Иконки -->
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+  <!-- Стили -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       МОДАЛЬНОЕ ОКНО: Сводка тренировки
+       ═══════════════════════════════════════════ -->
+  <div class="modal-overlay" id="summaryModal" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <h2 class="modal-title" id="summaryTitle">
+        Тренировка <span>завершена!</span>
+      </h2>
+
+      <div class="modal-stats-grid">
+        <div class="modal-stat">
+          <div class="modal-stat-label">Дистанция</div>
+          <div class="modal-stat-value" id="summaryDistance">0.00</div>
+          <div class="modal-stat-unit">км</div>
+        </div>
+        <div class="modal-stat">
+          <div class="modal-stat-label">Время</div>
+          <div class="modal-stat-value" id="summaryTime">00:00</div>
+          <div class="modal-stat-unit">мин:сек</div>
+        </div>
+        <div class="modal-stat">
+          <div class="modal-stat-label">Ср. скорость</div>
+          <div class="modal-stat-value" id="summaryAvgSpeed">0.0</div>
+          <div class="modal-stat-unit">км/ч</div>
+        </div>
+        <div class="modal-stat">
+          <div class="modal-stat-label">Макс. скорость</div>
+          <div class="modal-stat-value" id="summaryMaxSpeed">0.0</div>
+          <div class="modal-stat-unit">км/ч</div>
+        </div>
+      </div>
+
+      <button class="btn-modal-save" id="btnSaveWorkout">
+        💾 СОХРАНИТЬ
+      </button>
+      <button class="btn-modal-discard" id="btnDiscardWorkout">
+        Удалить и закрыть
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       TOAST КОНТЕЙНЕР
+       ═══════════════════════════════════════════ -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- ═══════════════════════════════════════════
+       ОСНОВНОЕ ПРИЛОЖЕНИЕ
+       ═══════════════════════════════════════════ -->
+  <div id="app">
+
+    <!-- ── Шапка ── -->
+    <header class="app-header" role="banner">
+      <div class="app-logo">
+        <div class="logo-icon" aria-hidden="true">🚴</div>
+        <div class="logo-text">Velo<span>Track</span></div>
+      </div>
+
+      <!-- GPS / Статус -->
+      <div class="status-badge" id="statusBadge" role="status" aria-label="Статус GPS">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Ожидание</span>
+      </div>
+    </header>
+
+    <!-- ── Главная секция: скорость ── -->
+    <main class="speed-section" role="main">
+      <p class="speed-label" aria-label="Текущая скорость">Текущая скорость</p>
+
+      <div class="speed-display" aria-live="polite" aria-atomic="true">
+        <span class="speed-value" id="speedValue">0</span>
+        <span class="speed-unit">КМ/Ч</span>
+      </div>
+
+      <!-- Визуальный индикатор скорости -->
+      <div class="speed-bar-container" aria-hidden="true">
+        <div class="speed-bar-track">
+          <div class="speed-bar-fill" id="speedBarFill"></div>
+        </div>
+        <div class="speed-scale">
+          <span>0</span>
+          <span>10</span>
+          <span>20</span>
+          <span>30</span>
+          <span>40+</span>
+        </div>
+      </div>
+    </main>
+
+    <!-- ── Статистика: 3 основных показателя ── -->
+    <section class="stats-grid" aria-label="Статистика тренировки">
+
+      <div class="stat-card" id="cardDistance">
+        <div class="stat-icon" aria-hidden="true">📍</div>
+        <div class="stat-label">Дистанция</div>
+        <div class="stat-value" id="distanceValue">0.00</div>
+        <div class="stat-sub">км</div>
+      </div>
+
+      <div class="stat-card" id="cardTime">
+        <div class="stat-icon" aria-hidden="true">⏱</div>
+        <div class="stat-label">Время</div>
+        <div class="stat-value" id="timeValue">00:00</div>
+        <div class="stat-sub">мм:сс</div>
+      </div>
+
+      <div class="stat-card" id="cardAvgSpeed">
+        <div class="stat-icon" aria-hidden="true">📊</div>
+        <div class="stat-label">Ср. скорость</div>
+        <div class="stat-value" id="avgSpeedValue">0.0</div>
+        <div class="stat-sub">км/ч</div>
+      </div>
+
+    </section>
+
+    <!-- ── Расширенная статистика ── -->
+    <section class="stats-row" aria-label="Дополнительная статистика">
+
+      <div class="stat-card-wide">
+        <div class="stat-wide-icon" aria-hidden="true">⚡</div>
+        <div class="stat-wide-info">
+          <div class="stat-wide-label">Макс. скорость</div>
+          <div class="stat-wide-value" id="maxSpeedValue">0.0 <small style="color:var(--text-muted);font-size:.65rem">км/ч</small></div>
+        </div>
+      </div>
+
+      <div class="stat-card-wide">
+        <div class="stat-wide-icon" aria-hidden="true">🔥</div>
+        <div class="stat-wide-info">
+          <div class="stat-wide-label">Калории</div>
+          <div class="stat-wide-value" id="caloriesValue">0 <small style="color:var(--text-muted);font-size:.65rem">ккал</small></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── Кнопки управления ── -->
+    <section class="controls-section" aria-label="Управление тренировкой">
+
+      <!-- Главная кнопка -->
+      <button
+        class="btn-primary btn-start"
+        id="btnMain"
+        aria-label="Начать тренировку"
+        type="button"
+      >
+        <span class="btn-icon" id="btnIcon">▶</span>
+        <span id="btnLabel">СТАРТ</span>
+      </button>
+
+      <!-- Вторичные кнопки -->
+      <div class="btn-row">
+        <button
+          class="btn-secondary"
+          id="btnReset"
+          aria-label="Сбросить тренировку"
+          type="button"
+          disabled
+        >
+          🔄 Сброс
+        </button>
+
+        <button
+          class="btn-secondary"
+          id="btnHistory"
+          aria-label="История тренировок"
+          type="button"
+        >
+          📋 История
+        </button>
+      </div>
+
+    </section>
+
+    <!-- ── История тренировок ── -->
+    <section class="history-section" id="historySection" aria-label="История тренировок">
+      <div class="section-header">
+        <h2 class="section-title">История</h2>
+        <span class="section-action" id="clearHistoryBtn" role="button" tabindex="0">Очистить всё</span>
+      </div>
+
+      <!-- Заглушка пустой истории -->
+      <div class="history-empty" id="historyEmpty">
+        <span class="history-empty-icon">🚵</span>
+        Нет сохранённых тренировок.<br/>
+        Нажми <strong>СТАРТ</strong> и поехали!
+      </div>
+
+      <!-- Список тренировок (заполняется динамически) -->
+      <div class="history-list" id="historyList" role="list"></div>
+    </section>
+
+  </div><!-- /#app -->
+
+  <!-- Скрипт приложения -->
+  <script src="app.js"></script>
+</body>
+</html>

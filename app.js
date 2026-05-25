@@ -123,6 +123,11 @@ const DOM = {
 
   /* Тост-контейнер */
   toastContainer: document.getElementById('toastContainer'),
+
+  /* График скорости */
+  speedChart:     document.getElementById('speedChart'),
+  chartContainer: document.querySelector('.chart-container'),
+  chartSubtitle:  document.getElementById('chartSubtitle'),
 };
 
 /* ══════════════════════════════════════════════════════
@@ -136,6 +141,7 @@ function initApp() {
   renderHistory();
   bindEvents();
   registerServiceWorker();
+  initChart();  // ← инициализация графика
 
   // Выводим подсказку о симуляторе в консоль
   printSimulatorHelp();
@@ -423,6 +429,7 @@ function _onGPSUpdate(position) {
   /* ⑥ Обновляем всё что связано со скоростью и дистанцией */
   _renderSpeed();
   _renderDistance();
+  _updateChart(State.currentSpeed);  // ← график обновляется и от GPS, и от симулятора
 }
 
 /* ── GPS-ошибка ─────────────────────────────────────── */
@@ -531,6 +538,114 @@ function _average(arr) {
 
 /** Градусы → радианы */
 function _toRad(deg) { return deg * Math.PI / 180; }
+
+/* ══════════════════════════════════════════════════════
+   §9. ГРАФИК СКОРОСТИ (Chart.js)
+
+   Линейный график в реальном времени — последние 60 точек.
+   Обновляется из _onGPSUpdate (работает с GPS и симулятором).
+   ══════════════════════════════════════════════════════ */
+
+/** Инстанция Chart.js (хранится глобально) */
+let speedChartInstance = null;
+
+/** Максимум точек на графике (после них график плывёт влево) */
+const CHART_MAX_POINTS = 60;
+
+/**
+ * Инициализация графика скорости.
+ * Вызывается один раз в initApp().
+ * Создаёт градиентную неоновую заштриховку под линией.
+ */
+function initChart() {
+  if (!window.Chart) {
+    console.warn('[Chart] Chart.js не загружен. Проверьте CDN.');
+    return;
+  }
+
+  const ctx = DOM.speedChart.getContext('2d');
+
+  // Градиент под линией: #00ff88 → прозрачный
+  const gradient = ctx.createLinearGradient(0, 0, 0, 120);
+  gradient.addColorStop(0,   'rgba(0, 255, 136, 0.35)');
+  gradient.addColorStop(0.6, 'rgba(0, 255, 136, 0.06)');
+  gradient.addColorStop(1,   'rgba(0, 255, 136, 0)');
+
+  speedChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels:   [],   // временные метки (пустые — ось X не показываем)
+      datasets: [{
+        label:           'Км/ч',
+        data:            [],
+        borderColor:     '#00ff88',
+        borderWidth:     2,
+        backgroundColor: gradient,
+        fill:            true,
+        tension:         0.4,          // плавная кривая
+        pointRadius:     0,            // точки скрыты
+        pointHoverRadius:0,
+      }],
+    },
+    options: {
+      responsive:          true,
+      maintainAspectRatio: false,
+      animation:           { duration: 300 },
+      interaction:         { mode: 'none' },
+      plugins: {
+        legend:  { display: false },
+        tooltip: { enabled: false },
+      },
+      scales: {
+        x: {
+          display: false,   // ось X скрыта
+          grid:    { display: false },
+        },
+        y: {
+          display:  false,  // ось Y скрыта
+          grid:     { display: false },
+          min:      0,
+          // suggestedMax: обновляем динамически в _updateChart
+        },
+      },
+    },
+  });
+
+  console.log('[Chart] График скорости инициализирован ✓');
+}
+
+/**
+ * Добавить новую точку скорости на график.
+ * Если точек > CHART_MAX_POINTS — сдвигаем график влево.
+ * Обновляет подпись .chart-subtitle с пиковой скоростью.
+ * @param {number} speedKmh
+ */
+function _updateChart(speedKmh) {
+  if (!speedChartInstance) return;
+
+  const ds = speedChartInstance.data;
+
+  // Добавляем точку
+  ds.labels.push('');
+  ds.datasets[0].data.push(parseFloat(speedKmh.toFixed(1)));
+
+  // Скользящее окно: убираем старые точки
+  if (ds.labels.length > CHART_MAX_POINTS) {
+    ds.labels.shift();
+    ds.datasets[0].data.shift();
+  }
+
+  // Динамически растягиваем ось Y чуть выше максимума (отступ +5 км/ч)
+  const maxVisible = Math.max(...ds.datasets[0].data, 5);
+  speedChartInstance.options.scales.y.suggestedMax = maxVisible + 5;
+
+  // Обновляем подпись: пик скорости
+  if (DOM.chartSubtitle) {
+    DOM.chartSubtitle.textContent = `пик ${State.maxSpeed.toFixed(1)} км/ч`;
+  }
+
+  speedChartInstance.update('none');  // 'none' — без анимации перерисовки (плавность обеспечивает tension)
+}
 
 /* ══════════════════════════════════════════════════════
    §9. ОТРИСОВКА UI (Render-функции)
@@ -665,6 +780,8 @@ function setStatsActive(active) {
   [DOM.distanceValue, DOM.timeValue, DOM.avgSpeedValue].forEach(el =>
     el.classList.toggle('active', active)
   );
+  // Анимируем контейнер графика вместе с карточками
+  if (DOM.chartContainer) DOM.chartContainer.classList.toggle('active', active);
 }
 
 /**
@@ -808,6 +925,15 @@ function resetWorkoutData() {
   State.calories         = 0;
   State.previousPosition = null;
   State.rawSpeedBuffer   = [];
+
+  // Очищаем данные графика
+  if (speedChartInstance) {
+    speedChartInstance.data.labels   = [];
+    speedChartInstance.data.datasets[0].data = [];
+    speedChartInstance.update('none');
+  }
+  if (DOM.chartSubtitle) DOM.chartSubtitle.textContent = 'ожидание данных...';
+  if (DOM.chartContainer) DOM.chartContainer.classList.remove('active');
 }
 
 /* ══════════════════════════════════════════════════════

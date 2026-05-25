@@ -933,3 +933,82 @@ body::after {
     padding-bottom: max(24px, env(safe-area-inset-bottom));
   }
 }
+
+/* ══════════════════════════════════════════════════════
+   ── График скорости (Chart.js) ──
+   ══════════════════════════════════════════════════════ */
+.chart-container {
+  width: 100%;
+  margin-bottom: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 16px 10px;
+  position: relative;
+  overflow: hidden;
+  /* Нeon-линия сверху — загорается вместе с карточками */
+  transition: border-color var(--transition-mid);
+}
+
+/* Акцентная полоса сверху — зеркалит поведение stat-card */
+.chart-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--neon-green), transparent);
+  opacity: 0;
+  transition: opacity var(--transition-mid);
+}
+
+.chart-container.active {
+  border-color: var(--border-accent);
+}
+
+.chart-container.active::before {
+  opacity: 1;
+}
+
+/* Шапка графика: заголовок + подпись с пиком скорости */
+.chart-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.chart-title {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.chart-subtitle {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--neon-green);
+  letter-spacing: 0.05em;
+  /* Пульсация когда едем */
+  transition: opacity 0.3s ease;
+}
+
+/* Сам canvas — Chart.js управляет высотой через aspectRatio,
+   но мы принудительно задаём высоту контейнера */
+.chart-container canvas {
+  width: 100% !important;
+  height: 120px !important;
+  display: block;
+}
+
+/* Адаптив: чуть меньше на маленьких экранах */
+@media (max-height: 700px) {
+  .chart-container canvas {
+    height: 90px !important;
+  }
+}

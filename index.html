@@ -163,6 +163,15 @@
 
     </section>
 
+    <!-- ── График скорости в реальном времени ── -->
+    <div class="chart-container" aria-label="График скорости">
+      <div class="chart-header">
+        <span class="chart-title">График скорости</span>
+        <span class="chart-subtitle" id="chartSubtitle">ожидание данных...</span>
+      </div>
+      <canvas id="speedChart" role="img" aria-label="Линейный график изменения скорости"></canvas>
+    </div>
+
     <!-- ── Кнопки управления ── -->
     <section class="controls-section" aria-label="Управление тренировкой">
 
@@ -220,6 +229,9 @@
     </section>
 
   </div><!-- /#app -->
+
+  <!-- Chart.js — библиотека графиков (загружается до app.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 
   <!-- Скрипт приложения -->
   <script src="app.js"></script>
